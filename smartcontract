@@ -1,0 +1,189 @@
+pragma solidity 0.5.16;
+
+contract ManagingOrder{
+    
+    mapping(uint256 => Seller) private sellerArr;
+    mapping(address => Seller) private sellerArrAdd;
+    uint256 sellerId=0;
+    mapping(uint256 => Buyer) private buyerArr;
+    mapping(address => Buyer) private buyerArrAdd;
+    uint256 buyerId=0;
+    mapping(uint256 => Order) private orderArr;
+    uint256 orderId=0;
+    uint _temppri;
+    
+    mapping(address => Order) private orderBySeller;
+    mapping(address => Order) private orderByBuyer;
+    
+    address payable toWallet;
+    
+    uint256 sellerNum;
+    uint256 parkCount=0;
+    
+    event Parkings(
+        uint256 index,
+        string name,
+        string addr,
+        string phno,
+        address payable wallet,
+        uint256 start,
+        uint256 stop,
+        string status,
+        uint256 price
+        );
+        
+    
+
+    
+    struct Seller{
+        uint256 index;
+        string name;
+        string addr;
+        string phno;
+        address payable wallet;
+        uint256 start;
+        uint256 stop;
+        string status;
+        uint256 price;
+    }
+    
+    
+    
+    struct Buyer{
+        uint256 index;
+        string name;
+        string phno;
+        address payable wallet;
+    }
+    
+    
+    struct Order{
+        uint256 index;
+        string buyerName;
+        string sellerName;
+        uint256 sellerNumber;
+        address sellerWallet;
+        address buyerWallet;
+        string sellerPhNo;
+        string buyerPhNo;
+        string parking;
+        uint256 price;
+    }
+    
+    event OrderDetailsSeller(
+        uint256 index,
+        string buyerName,
+        address buyerWallet,
+        string buyerPhNo
+        );
+        
+    event shekar(
+        uint256 _temper,
+        uint256 _tempValue
+        );
+        
+        
+    event OrderDetailsBuyer(
+        uint256 index,
+        string sellerName,
+        string sellerPhNo,
+        address sellerWallet,
+        string sellerAddr
+        );
+    
+    
+    function setSeller(string memory _name,string memory _addr,string memory _phno,uint256 _start,uint256 _stop,uint256 _price) public {
+        sellerId +=1;
+        sellerArr[sellerId]=Seller(sellerId,_name,_addr,_phno,msg.sender,_start,_stop,"open",_price);
+        sellerArrAdd[msg.sender]=Seller(sellerId,_name,_addr,_phno,msg.sender,_start,_stop,"open",_price);
+    }
+    
+    function displayParks() public{
+        
+        for(uint256 i=1;i<=sellerId;i++){
+            uint256 index=sellerArr[i].index;
+            string memory name=sellerArr[i].name;
+            string memory addr=sellerArr[i].addr;
+            string memory phno=sellerArr[i].phno;
+            address payable wallet=sellerArr[i].wallet;
+            uint256 start=sellerArr[i].start;
+            uint256 stop=sellerArr[i].stop;
+            string memory status=sellerArr[i].status;
+            uint256 _price=sellerArr[i].price;
+            emit Parkings(index,name,addr,phno,wallet,start,stop,status,_price);
+        }
+    }
+    
+    function setBuyer(string memory _name,string memory _phno) public {
+        buyerId +=1;
+        buyerArr[buyerId]=Buyer(buyerId,_name,_phno,msg.sender);
+        buyerArrAdd[msg.sender]=Buyer(buyerId,_name,_phno,msg.sender);
+    }
+    
+    
+    
+    function getBuyer(address _address) internal view returns(uint256){
+        return buyerArrAdd[_address].index;
+    }
+    
+    
+    function setOrder(uint256 _sellerNumber,address payable _sellerWallet) external payable{
+        toWallet=_sellerWallet;
+        _temppri=sellerArr[_sellerNumber].price * 1000000000000000000;
+        if((keccak256(abi.encodePacked((sellerArr[_sellerNumber].status))) == keccak256(abi.encodePacked(("open"))))){
+        if(_temppri != msg.value){revert();}
+        toWallet.transfer(msg.value);
+        uint256 temp=buyerArrAdd[msg.sender].index;
+        string memory tempBuyer=buyerArr[temp].name;
+        string memory tempSeller=sellerArr[_sellerNumber].name;
+        string memory tempSellerPhNo=sellerArr[_sellerNumber].phno;
+        string memory tempBuyerPhNo=buyerArr[temp].phno;
+        uint256 tempSellerNum=_sellerNumber;
+        address tempSellerWallet=_sellerWallet;
+        address tempBuyerWallet=buyerArr[temp].wallet;
+        string memory tempParking=sellerArr[_sellerNumber].addr;
+        uint256 _price=sellerArr[_sellerNumber].price;
+        orderId +=1;
+        sellerArr[_sellerNumber].status="close";
+        orderArr[orderId]=Order(orderId,tempBuyer,tempSeller,tempSellerNum,tempSellerWallet,tempBuyerWallet,tempSellerPhNo,tempBuyerPhNo,tempParking,_price);
+        orderBySeller[tempSellerWallet]=Order(orderId,tempBuyer,tempSeller,tempSellerNum,tempSellerWallet,tempBuyerWallet,tempSellerPhNo,tempBuyerPhNo,tempParking,_price);
+        orderByBuyer[tempBuyerWallet]=Order(orderId,tempBuyer,tempSeller,tempSellerNum,tempSellerWallet,tempBuyerWallet,tempSellerPhNo,tempBuyerPhNo,tempParking,_price);
+        }
+    }
+    
+    modifier isSeller(){
+        if(orderBySeller[msg.sender].index>0){
+            _;
+        }
+    }
+    
+    modifier isBuyer(){
+        
+        if(orderByBuyer[msg.sender].index>0){
+            _;
+        }
+    }
+    
+    function getOrdersSeller() public isSeller  {
+        uint256 _orderId=orderBySeller[msg.sender].index;
+        string memory _tempName=orderBySeller[msg.sender].buyerName;
+        address _tempWallet=orderBySeller[msg.sender].buyerWallet;
+        string memory _tempPhNo=orderBySeller[msg.sender].buyerPhNo;
+        
+        emit OrderDetailsSeller(_orderId,_tempName,_tempWallet,_tempPhNo);
+        
+    }
+    
+    
+    function getOrdersBuyer() public isBuyer{
+        address _address=msg.sender;
+        uint256 tempOrderId=orderByBuyer[_address].index;
+        string memory tempName=orderByBuyer[_address].sellerName;
+        address tempWallet=orderByBuyer[_address].sellerWallet;
+        string memory tempPhNo=orderByBuyer[_address].sellerPhNo;
+        string memory tempAddress=orderByBuyer[_address].parking;
+        
+        emit OrderDetailsBuyer(tempOrderId,tempName,tempPhNo,tempWallet,tempAddress);
+    }
+    
+}
